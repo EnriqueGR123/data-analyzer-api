@@ -3,6 +3,7 @@ import pandas as pd
 from io import BytesIO
 from app.db.dependencies import get_db
 from sqlalchemy.orm import Session
+from app.schemas import DatasetResponse
 from .models.Dataset import Dataset
 import uuid
 import os
@@ -17,7 +18,7 @@ def inicio():
 
 ALLOWED_EXTENSION = '.csv'
 
-@app.post('/datasets/')
+@app.post('/datasets/', response_model=DatasetResponse)
 async def upload_file(file: UploadFile = File(),db: Session = Depends(get_db)) -> dict:
     content = await file.read()
     if not file.filename.lower().endswith(ALLOWED_EXTENSION):
@@ -40,10 +41,10 @@ async def upload_file(file: UploadFile = File(),db: Session = Depends(get_db)) -
     os.makedirs("uploads", exist_ok=True)
     with open(file_path, 'wb') as content_binary:
         content_binary.write(content)
-    return {'id': new_file.id,'filename': new_file.filename, 'rows': new_file.rows, 'columns': new_file.columns, 'created_at': new_file.created_at}
+    return {'id': new_file.id, 'filename': new_file.filename,'file_path': new_file.file_path, 'rows': new_file.rows,  'columns': new_file.columns, 'created_at': new_file.created_at}
 
 
-@app.get('/datasets')
+@app.get('/datasets', response_model=DatasetResponse)
 def get_datasets(db:Session= Depends(get_db)):
     datasets = db.query(Session).all()
     if not datasets:
@@ -51,11 +52,55 @@ def get_datasets(db:Session= Depends(get_db)):
     return datasets
 
 
-@app.get('/dataset/{id}')
+@app.get('/dataset/{id}', response_model=DatasetResponse)
 def get_dataset_by_id(id:int, db:Session= Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail='Dataset not found')
     return dataset
-    
 
+
+
+@app.get('/dataset/{id}/statics')
+def get_statics(id:int, db:Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == id).first()
+    if not dataset:
+        raise HTTPException(status_code=400, detail='Dataset no encontrado')
+    try:
+        df = pd.read_csv(dataset.file_path)
+    except pd.errors.ParserError:
+        raise HTTPException(status_code=404, detail="Invalid CSV file")
+    return {'Rows':df.shape[0], 'Colums':df.shape[1],'Statics':{df.describe().to_dict()}}
+
+
+'''
+ID del dataset
+
+Buscar en PostgreSQL
+
+Obtener file_path
+
+Leer CSV con pandas
+
+Calcular estadísticas
+
+Devolver JSON
+
+
+
+
+{
+  "rows": 1338,
+  "columns": 7,
+  "statistics": {
+    "age": {
+      "mean": 39.2,
+      "min": 18,
+      "max": 64
+    }
+  }
+}
+'''
+
+    
+    
