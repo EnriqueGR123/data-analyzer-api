@@ -70,36 +70,36 @@ def get_statics(id:int, db:Session = Depends(get_db)):
         df = pd.read_csv(dataset.file_path)
     except pd.errors.ParserError:
         raise HTTPException(status_code=404, detail="Invalid CSV file")
-    return {'Rows':df.shape[0], 'Colums':df.shape[1],'Statics':{df.describe().to_dict()}}
+    return {'Rows':df.shape[0], 'colums':df.shape[1],'statistics':df.describe().to_dict()}
+
+
+
+@app.get('/datasets/{id}/missing-values')
+def missing_values(id:int, db : Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail='Da6aset not found')
+    try:
+        df = pd.read_csv(dataset.file_path)
+    except pd.errors.ParserError:
+        raise  HTTPException(status_code=404, detail="Invalid CSV file")
+    return  df.isnull().sum().to_dict()
 
 
 '''
-ID del dataset
-
-Buscar en PostgreSQL
-
+Dataset ID
+    ↓
+Buscar Dataset en PostgreSQL
+    ↓
 Obtener file_path
-
-Leer CSV con pandas
-
-Calcular estadísticas
-
-Devolver JSON
-
-
-
-
-{
-  "rows": 1338,
-  "columns": 7,
-  "statistics": {
-    "age": {
-      "mean": 39.2,
-      "min": 18,
-      "max": 64
-    }
-  }
-}
+    ↓
+pd.read_csv(...)
+    ↓
+df.isnull().sum()
+    ↓
+Convertir a diccionario
+    ↓
+JSON
 '''
 
     
