@@ -52,7 +52,7 @@ def get_datasets(db:Session= Depends(get_db)):
     return datasets
 
 
-@app.get('/dataset/{id}', response_model=DatasetResponse)
+@app.get('/datasets/{id}', response_model=DatasetResponse)
 def get_dataset_by_id(id:int, db:Session= Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == id).first()
     if not dataset:
@@ -61,7 +61,7 @@ def get_dataset_by_id(id:int, db:Session= Depends(get_db)):
 
 
 
-@app.get('/dataset/{id}/statics')
+@app.get('/datasets/{id}/statics')
 def get_statics(id:int, db:Session = Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == id).first()
     if not dataset:
@@ -86,21 +86,42 @@ def missing_values(id:int, db : Session = Depends(get_db)):
     return  df.isnull().sum().to_dict()
 
 
-'''
-Dataset ID
-    ↓
-Buscar Dataset en PostgreSQL
-    ↓
-Obtener file_path
-    ↓
-pd.read_csv(...)
-    ↓
-df.isnull().sum()
-    ↓
-Convertir a diccionario
-    ↓
-JSON
-'''
+
+@app.get('/datasets/{id}/info')
+def dataset_info(id:int, db:Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail='Dataset not found')
+    try:
+        df = pd.read_csv(dataset.file_path)
+    except pd.errors.ParserError:
+        raise HTTPException(status_code=400, detail='Invalid CSV file')
+    return {'rows': df.shape[0], 
+            'columns':df.shape[1],
+            'colums name':df.columns.to_list(),
+            'data numeric type': df.dtypes.astype(str).to_dict()}
+
+
+
+@app.get('/datasets/{id}/analysis')
+def get_analysis(id:int, db:Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail='Dataset not found')
+    try:
+        df = pd.read_csv(dataset.file_path)
+    except pd.errors.ParserError:
+        raise HTTPException(status_code=400, detail='Invalid CSV')
+    categorical = df.select_dtypes(exclude='number')
+    numeric = df.select_dtypes(include= 'number')
+    return {'dataset': dataset.filename,
+            'numeric_columns': numeric.columns.to_list(),
+            'numeric_columns_count': len(numeric.columns),
+            'categorical_columns': categorical.columns.to_list(),
+            'categorical_columns_count': len(categorical.columns),
+            'numeric_summary': numeric.describe().to_dict(),
+            'correlaciones': df.corr(numeric_only=True).to_dict()}
+
 
     
     
