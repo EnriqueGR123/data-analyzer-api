@@ -7,7 +7,7 @@ from app.schemas import DatasetResponse
 from .models.Dataset import Dataset
 import uuid
 import os
-
+import numpy as np 
 
 app = FastAPI()
 
@@ -120,7 +120,7 @@ def get_analysis(id:int, db:Session = Depends(get_db)):
             'categorical_columns': categorical.columns.to_list(),
             'categorical_columns_count': len(categorical.columns),
             'numeric_summary': numeric.describe().to_dict(),
-            'correlaciones': df.corr(numeric_only=True).to_dict()}
+            'correlaciones': df.corr(numeric_only=True).to_dict(),}
 
 
     
